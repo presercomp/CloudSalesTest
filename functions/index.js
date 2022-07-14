@@ -424,7 +424,7 @@ app.put("/api/products", async (req, res) => {
 });
 
 app.put("/api/products/:productId", async (req, res) => {
-  const fields = userFields;
+  const fields = productFields;
   fields.push("operatorId");
   if (!req.body || !fields.every((field) => field in req.body) || !req.params.productId) {
     return res.status(400).json({
@@ -435,6 +435,7 @@ app.put("/api/products/:productId", async (req, res) => {
       },
     });
   }
+  const productId = req.params.productId;
   const validateOperator = await db.collection("operators").doc(req.body.operatorId).get();
   if (!validateOperator.exists) {
     return res.status(400).json({
@@ -442,26 +443,29 @@ app.put("/api/products/:productId", async (req, res) => {
       data: null,
     });
   }
-  const querySnapshot = await db.collection("products").where("operatorId", "==", req.body.operatorId).where("id", "==", req.params.productId).get();
+  const querySnapshot = await db.collection("products").where("operatorId", "==", req.body.operatorId).where("id", "==", productId).get();
   if (querySnapshot.empty) {
     return res.status(400).json({
       message: "ProductID don't belong to Operator",
       data: null,
     });
   }
-  await db.collection("products").doc(req.params.productId).update({
-    "name": req.body.name,
-    "MSU": req.body.MSU,
-    "price": req.body.price,
-    "stock": req.body.stock,
-    "MDPrice": req.body.MDPrice,
-    "MDPercentage": req.body.MDPercentage,
-    "operatorId": req.params.operatorId,
-    "active": req.body.active,
+  return await db.collection("products").doc(productId).update({
+    id: productId,
+    name: req.body.name,
+    MSU: req.body.MSU,
+    price: req.body.price,
+    stock: req.body.stock,
+    MDPrice: req.body.MDPrice,
+    MDPercentage: req.body.MDPercentage,
+    operatorId: req.body.operatorId,
+    active: req.body.active,
+  }).then(() => {
+    return res.status(200).json({message: "Product update successfully", data: []});
+  }).catch((error) => {
+    return res.status(500).json({message: "Internal Server Error", data: {"document": productId, "errors": error}});
   });
-  return res.status(200).json({message: "Product update successfully", data: []});
-}
-);
+});
 
 
 app.get("/api/sales/:operatorId", async (req, res) => {
